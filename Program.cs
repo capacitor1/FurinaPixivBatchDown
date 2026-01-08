@@ -82,6 +82,13 @@ namespace FurinaPixivBatchDownloader
                 //开始下载
                 foreach (var il in allworks)
                 {
+                    //检查是否有大量任务残留下载，防止爆炸
+                    while (Downloader._downloading > 50)
+                    {
+                        Console.WriteLine($"[MAIN W] Remaining {Downloader._downloading} files are downloading,waiting...");
+                        await Task.Delay(5000);
+                    }
+
                     string _savefolder = Path.Combine(_basefolder, "Illusts"), jp = Path.Combine(_savefolder, $"{il}_idx.json"); 
                     Directory.CreateDirectory(_savefolder);
                     JsonNode illust;
@@ -204,7 +211,7 @@ namespace FurinaPixivBatchDownloader
             while(Downloader._downloading > 0)
             {
                 Console.WriteLine($"[MAIN I] API requests finished,but remaining {Downloader._downloading} files are downloading");
-                await Task.Delay(1000);
+                await Task.Delay(5000);
             }
             //end
             Console.WriteLine("[MAIN I] Done!\r\n[MAIN I] Press any key to exit.");
