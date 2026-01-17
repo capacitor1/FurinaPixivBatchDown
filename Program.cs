@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -54,7 +55,6 @@ namespace FurinaPixivBatchDownloader
                     $"https://www.pixiv.net/ajax/user/{pxuserid}?full=1",
                     $"https://www.pixiv.net/en/users/{pxuserid}"
                     );
-
                 //创建文件夹
                 string name = FileNameHelper.ToValidFileName($"{(string)userprofil["body"]!["name"]!} [{(string)userprofil["body"]!["userId"]!}]");
                 string _basefolder = Path.Combine(_config.SaveBasePath is null ? Environment.CurrentDirectory : _config.SaveBasePath, name);
@@ -62,8 +62,24 @@ namespace FurinaPixivBatchDownloader
 
                 //写入profile
                 string jpath = Path.Combine(_basefolder, "profile.json");
-                File.WriteAllText(jpath, JsonSerializer.Serialize(userprofil, options));
-                await Downloader.PxDownload((string)userprofil["body"]!["imageBig"]!, Path.Combine(_basefolder, "avatar.png"));
+                byte[] pcontent = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(userprofil, options));
+                //是否存在？是否一致？
+                if (File.Exists(jpath))
+                {
+                    byte[] pold = File.ReadAllBytes(jpath);
+                    if (!pold.SequenceEqual(pcontent))
+                    {
+                        //不一致，写入新的。一致则不写入。
+                        File.Move(jpath,$"{jpath}.{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+                        File.WriteAllBytes(jpath, pcontent);
+                    }
+                }
+                else
+                {
+                    File.WriteAllBytes(jpath,pcontent);
+                }
+
+                    await Downloader.PxDownload((string)userprofil["body"]!["imageBig"]!, Path.Combine(_basefolder, "avatar.png"));
                 if(userprofil["body"]!["background"] is not null)
                     await Downloader.PxDownload((string)userprofil["body"]!["background"]!["url"]!, Path.Combine(_basefolder, "bg.png"));
                 //获取其中所有作品ID
