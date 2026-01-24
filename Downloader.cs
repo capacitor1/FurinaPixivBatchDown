@@ -69,7 +69,7 @@ namespace FurinaPixivBatchDownloader
                 }
             }
         }
-        public static async Task<JsonNode> PxGet(string api,string referer)
+        public static async Task<JsonNode?> PxGet(string api,string referer)
         { 
             //
             int waitMs = 0;
@@ -90,7 +90,7 @@ namespace FurinaPixivBatchDownloader
             JsonNode? tmp = null;
             int _429 = _429interval;
             httpClient.DefaultRequestHeaders.Referrer = new(referer);
-            while (tmp is null)
+            while (tmp is null)//429 or httpclient error
             {
                 try
                 {
@@ -105,20 +105,21 @@ namespace FurinaPixivBatchDownloader
                         await Task.Delay(_429);
                         _429 *= 2;//x2
                     }
-                    else if ((int)responseMessage.StatusCode >= 400 && (int)responseMessage.StatusCode < 500)
+                    else if ((int)responseMessage.StatusCode >= 500)//server error
                     {
                         //client error
                         Console.WriteLine($"[API  E] {str} : HTTP {(int)responseMessage.StatusCode}");
                         LogErr($"[API] HTTP error {(int)responseMessage.StatusCode} at {api}");
+                        return null;
                     }
-                    else
+                    else//client error or json error
                     {
                         tmp = JsonNode.Parse(await responseMessage.Content.ReadAsStringAsync())!;
                         if ((bool)tmp["error"]!)
                         {
                             Console.WriteLine($"[API  W] {str} : json error '{(string)tmp["message"]!}'");
                             await Task.Delay(500);//prevent client ban
-                            tmp = null;
+                            return null;
                         }
                     }
                 }

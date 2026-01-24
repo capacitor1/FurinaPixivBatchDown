@@ -20,4 +20,7 @@ public class AppConfig
 
     [JsonPropertyName("apirequestdelay")]
     public int? ApiRequestDelay { get; set; }
+
+    [JsonPropertyName("needupdatenovels")]
+    public bool NeedUpdateNovels { get; set; }
 }

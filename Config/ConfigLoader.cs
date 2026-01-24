@@ -69,7 +69,8 @@ public static class ConfigLoader
             NeedAI = true,
             AutoLoadUsersList = string.Empty,
             ApiRequestDelay = 1000,
-            Init429Delay = 30000
+            Init429Delay = 30000,
+            NeedUpdateNovels = false
         };
     }
 

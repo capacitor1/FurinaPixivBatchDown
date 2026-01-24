@@ -47,14 +47,20 @@ namespace FurinaPixivBatchDownloader
             foreach (string pxuserid in pxuserids)
             {
                 //获取用户
-                JsonNode userjson = await Downloader.PxGet(
+                JsonNode? userjson = await Downloader.PxGet(
                     $"https://www.pixiv.net/ajax/user/{pxuserid}/profile/all",
                     $"https://www.pixiv.net/en/users/{pxuserid}"
                     );
-                JsonNode userprofil = await Downloader.PxGet(
+                JsonNode? userprofil = await Downloader.PxGet(
                     $"https://www.pixiv.net/ajax/user/{pxuserid}?full=1",
                     $"https://www.pixiv.net/en/users/{pxuserid}"
                     );
+                //检查json有效性
+                if(userjson == null || userprofil == null)
+                {
+                    Console.WriteLine($"[API  E] Invalid profile at {pxuserid} , skippping...");
+                    continue;
+                }
                 //创建文件夹
                 string name = FileNameHelper.ToValidFileName($"{(string)userprofil["body"]!["name"]!} [{(string)userprofil["body"]!["userId"]!}]");
                 string _basefolder = Path.Combine(_config.SaveBasePath is null ? Environment.CurrentDirectory : _config.SaveBasePath, name);
@@ -107,7 +113,7 @@ namespace FurinaPixivBatchDownloader
 
                     string _savefolder = Path.Combine(_basefolder, "Illusts"), jp = Path.Combine(_savefolder, $"{il}_idx.json"); 
                     Directory.CreateDirectory(_savefolder);
-                    JsonNode illust;
+                    JsonNode? illust;
                     //获取作品
                     if (File.Exists(jp))
                     {
@@ -131,6 +137,7 @@ namespace FurinaPixivBatchDownloader
                             $"https://www.pixiv.net/en/users/{pxuserid}"
                         );
                     }
+                    if (illust == null) continue;
                     //保存作品
                     if ((int)illust["body"]!["aiType"]! > 0 && !_config.NeedAI) continue;// 跳过AI
                     if (!File.Exists(jp)) File.WriteAllText(jp, JsonSerializer.Serialize(illust, options));
@@ -142,7 +149,7 @@ namespace FurinaPixivBatchDownloader
                     if (baseurl.Contains("_ugoira0"))
                     {
                         jp = Path.Combine(_savefolder, $"{il}_ugoira.json");
-                        JsonNode u;
+                        JsonNode? u;
                         if (File.Exists(jp))
                         {
                             try
@@ -159,7 +166,7 @@ namespace FurinaPixivBatchDownloader
                         {
                             u = await Downloader.PxGet($"https://www.pixiv.net/ajax/illust/{il}/ugoira_meta",$"https://www.pixiv.net/en/artworks/{il}");
                         }
-
+                        if( u == null ) continue;
                         //保存
                         if (!File.Exists(jp)) File.WriteAllText(jp, JsonSerializer.Serialize(u, options));
                         //下载
@@ -186,9 +193,9 @@ namespace FurinaPixivBatchDownloader
                 {
                     string _savefolder = Path.Combine(_basefolder, "Novels"), jp = Path.Combine(_savefolder, $"{novID}_idx.json");
                     Directory.CreateDirectory(_savefolder);
-                    JsonNode n;
+                    JsonNode? n;
                     //获取小说
-                    if (File.Exists(jp))
+                    if (File.Exists(jp) && !_config.NeedUpdateNovels)
                     {
                         try
                         {
@@ -206,14 +213,32 @@ namespace FurinaPixivBatchDownloader
                         n = await Downloader.PxGet($"https://www.pixiv.net/ajax/novel/{novID}?time={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
                                 $"https://www.pixiv.net/en/users/{pxuserid}");
                     }
-
+                    if(n == null) continue;
                     //保存
-                    if (!File.Exists(jp))
+                    if (_config.NeedUpdateNovels)
                     {
-                        File.WriteAllText(jp, JsonSerializer.Serialize(n, options));
-                        //提取TXT
+                        pcontent = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(n, options));
                         string path = Path.Combine(_savefolder, $"{novID}.txt");
-                        File.WriteAllText(path, (string)n["body"]!["content"]!);
+                        //是否存在？是否一致？
+                        if (File.Exists(jp))
+                        {
+                            byte[] pold = File.ReadAllBytes(jp);
+                            if (!pold.SequenceEqual(pcontent))
+                            {
+                                //不一致，写入新的。一致则不写入。
+                                File.Move(jp, $"{jp}.{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+                                File.WriteAllBytes(jp, pcontent);
+
+                                //提取TXT
+                                File.WriteAllText(path, (string)n["body"]!["content"]!);
+                            }
+                        }
+                        else
+                        {
+                            File.WriteAllBytes(jp, pcontent);
+                            //提取TXT
+                            File.WriteAllText(path, (string)n["body"]!["content"]!);
+                        }
                     }
 
                     //下载封面
