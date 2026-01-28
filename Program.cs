@@ -56,7 +56,7 @@ namespace FurinaPixivBatchDownloader
                     $"https://www.pixiv.net/en/users/{pxuserid}"
                     );
                 //检查json有效性
-                if(userjson == null || userprofil == null)
+                if (userjson == null || userprofil == null)
                 {
                     Console.WriteLine($"[API  E] Invalid profile at {pxuserid} , skippping...");
                     continue;
@@ -76,20 +76,20 @@ namespace FurinaPixivBatchDownloader
                     if (!pold.SequenceEqual(pcontent))
                     {
                         //不一致，写入新的。一致则不写入。
-                        File.Move(jpath,$"{jpath}.{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
+                        File.Move(jpath, $"{jpath}.{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
                         File.WriteAllBytes(jpath, pcontent);
                     }
                 }
                 else
                 {
-                    File.WriteAllBytes(jpath,pcontent);
+                    File.WriteAllBytes(jpath, pcontent);
                 }
 
-                    await Downloader.PxDownload((string)userprofil["body"]!["imageBig"]!, Path.Combine(_basefolder, "avatar.png"));
-                if(userprofil["body"]!["background"] is not null)
+                await Downloader.PxDownload((string)userprofil["body"]!["imageBig"]!, Path.Combine(_basefolder, "avatar.png"));
+                if (userprofil["body"]!["background"] is not null)
                     await Downloader.PxDownload((string)userprofil["body"]!["background"]!["url"]!, Path.Combine(_basefolder, "bg.png"));
                 //获取其中所有作品ID
-                List<string> allworks = [],novels = [];
+                List<string> allworks = [], novels = [];
 
                 //illust
                 if (userjson["body"]!["illusts"] is JsonObject o) allworks.AddRange(o.Select(p => p.Key));
@@ -111,7 +111,7 @@ namespace FurinaPixivBatchDownloader
                         await Task.Delay(5000);
                     }
 
-                    string _savefolder = Path.Combine(_basefolder, "Illusts"), jp = Path.Combine(_savefolder, $"{il}_idx.json"); 
+                    string _savefolder = Path.Combine(_basefolder, "Illusts"), jp = Path.Combine(_savefolder, $"{il}_idx.json");
                     Directory.CreateDirectory(_savefolder);
                     JsonNode? illust;
                     //获取作品
@@ -159,18 +159,18 @@ namespace FurinaPixivBatchDownloader
                             catch (Exception ex)
                             {
                                 Console.WriteLine($"[MAIN W] Cached local file error: {ex.Message}.Retry from pixiv.");
-                                u = await Downloader.PxGet($"https://www.pixiv.net/ajax/illust/{il}/ugoira_meta",$"https://www.pixiv.net/en/artworks/{il}");
+                                u = await Downloader.PxGet($"https://www.pixiv.net/ajax/illust/{il}/ugoira_meta", $"https://www.pixiv.net/en/artworks/{il}");
                             }
                         }
                         else
                         {
-                            u = await Downloader.PxGet($"https://www.pixiv.net/ajax/illust/{il}/ugoira_meta",$"https://www.pixiv.net/en/artworks/{il}");
+                            u = await Downloader.PxGet($"https://www.pixiv.net/ajax/illust/{il}/ugoira_meta", $"https://www.pixiv.net/en/artworks/{il}");
                         }
-                        if( u == null ) continue;
+                        if (u == null) continue;
                         //保存
                         if (!File.Exists(jp)) File.WriteAllText(jp, JsonSerializer.Serialize(u, options));
                         //下载
-                        string url = (string)u["body"]!["originalSrc"]!,imgname = url.Split('/').Last();
+                        string url = (string)u["body"]!["originalSrc"]!, imgname = url.Split('/').Last();
                         _ = Downloader.PxDownload(url, Path.Combine(_savefolder, imgname));
 
                         //直接结束
@@ -213,33 +213,31 @@ namespace FurinaPixivBatchDownloader
                         n = await Downloader.PxGet($"https://www.pixiv.net/ajax/novel/{novID}?time={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
                                 $"https://www.pixiv.net/en/users/{pxuserid}");
                     }
-                    if(n == null) continue;
+                    if (n == null) continue;
                     //保存
-                    if (_config.NeedUpdateNovels)
+                    pcontent = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(n, options));
+                    string path = Path.Combine(_savefolder, $"{novID}.txt");
+                    //是否存在？是否一致？
+                    if (File.Exists(jp))
                     {
-                        pcontent = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(n, options));
-                        string path = Path.Combine(_savefolder, $"{novID}.txt");
-                        //是否存在？是否一致？
-                        if (File.Exists(jp))
+                        byte[] pold = File.ReadAllBytes(jp);
+                        if (!pold.SequenceEqual(pcontent) && _config.NeedUpdateNovels)
                         {
-                            byte[] pold = File.ReadAllBytes(jp);
-                            if (!pold.SequenceEqual(pcontent))
-                            {
-                                //不一致，写入新的。一致则不写入。
-                                File.Move(jp, $"{jp}.{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
-                                File.WriteAllBytes(jp, pcontent);
-
-                                //提取TXT
-                                File.WriteAllText(path, (string)n["body"]!["content"]!);
-                            }
-                        }
-                        else
-                        {
+                            //不一致，写入新的。一致则不写入。
+                            File.Move(jp, $"{jp}.{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}");
                             File.WriteAllBytes(jp, pcontent);
+
                             //提取TXT
                             File.WriteAllText(path, (string)n["body"]!["content"]!);
                         }
                     }
+                    else
+                    {
+                        File.WriteAllBytes(jp, pcontent);
+                        //提取TXT
+                        File.WriteAllText(path, (string)n["body"]!["content"]!);
+                    }
+
 
                     //下载封面
                     _ = Downloader.PxDownload((string)n["body"]!["coverUrl"]!, Path.Combine(_savefolder, $"{novID}_cover.jpg"));
@@ -249,7 +247,7 @@ namespace FurinaPixivBatchDownloader
             }
 
             //check 
-            while(Downloader._downloading > 0)
+            while (Downloader._downloading > 0)
             {
                 Console.WriteLine($"[MAIN I] API requests finished,but remaining {Downloader._downloading} files are downloading");
                 await Task.Delay(5000);
@@ -257,10 +255,10 @@ namespace FurinaPixivBatchDownloader
             //end
             Console.WriteLine("[MAIN I] Done!\r\n[MAIN I] Press any key to exit.");
             Console.ReadKey();
-        } 
-        
+        }
+
         // 匹配 Pixiv 用户主页 URL 的正则表达式
-        private static readonly Regex _pixivUserIdRegex = new(@"^https://www\.pixiv\.net/(?:\w{2}/)?users/(\d+)",RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex _pixivUserIdRegex = new(@"^https://www\.pixiv\.net/(?:\w{2}/)?users/(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// 
