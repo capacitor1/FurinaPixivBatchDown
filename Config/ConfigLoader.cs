@@ -12,7 +12,7 @@ public static class ConfigLoader
     /// </summary>
     public static AppConfig Load()
     {
-        Console.WriteLine("[CONF I] Loading config...");
+        //Console.WriteLine("[CONF I] Loading config...");
 
         try
         {
@@ -40,7 +40,7 @@ public static class ConfigLoader
                 return CreateDefaultConfig();
             }
 
-            Console.WriteLine("[CONF I] Config loaded successfully.");
+            Console.WriteLine($"[CONF I] Cookie={config.Cookie};SaveBasePath={config.SaveBasePath};AutoLoadUsersList={config.AutoLoadUsersList};UpDateInterval={config.UpDateInterval}");
             return config;
         }
         catch (IOException ioEx)
@@ -70,7 +70,7 @@ public static class ConfigLoader
             AutoLoadUsersList = string.Empty,
             ApiRequestDelay = 1000,
             Init429Delay = 30000,
-            NeedUpdateNovels = false
+            UpDateInterval = 48 * 3600 * 1000
         };
     }
 

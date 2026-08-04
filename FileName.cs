@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 
 public static class FileNameHelper
 {
@@ -65,8 +69,36 @@ public static class FileNameHelper
         string extension = Path.GetExtension(fileName);
 
         // 若文件名（无扩展名）是保留名，则添加下划线区分
-        if (reservedNames.Contains(nameWithoutExt.ToUpperInvariant()))  return $"{nameWithoutExt}_{extension}";
+        return reservedNames.Contains(nameWithoutExt.ToUpperInvariant()) ? $"{nameWithoutExt}_{extension}" : fileName;
+    }
 
-        return fileName;
+    public static uint[] ReadUInt32FromFile(string path)
+    {
+        byte[] bytes = File.ReadAllBytes(path);
+        uint[] result = new uint[bytes.Length / sizeof(uint)];
+        MemoryMarshal.Cast<byte, uint>(bytes).CopyTo(result);
+        return result;
+    }
+
+    public static void WriteUInt32ToFile(uint[] uints, string path, bool sort = true)
+    {
+        if (sort) Array.Sort(uints);
+        byte[] bytes = new byte[uints.Length * sizeof(uint)];
+        uints.AsSpan().CopyTo(MemoryMarshal.Cast<byte, uint>(bytes));
+        File.WriteAllBytes(path, bytes);
+    }
+    public static void AddToBackUpZipAndDelete(string jsonpath)
+    {
+        string zipPath = jsonpath + ".backup.zip";
+        FileMode fileMode = File.Exists(zipPath) ? FileMode.Open : FileMode.Create;
+        FileStream fs = new FileStream(zipPath, fileMode);
+        ZipArchive archive = new ZipArchive(fs, fileMode == FileMode.Create ? ZipArchiveMode.Create : ZipArchiveMode.Update, leaveOpen: true);
+        
+        archive.CreateEntryFromFile(jsonpath,$"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.json",CompressionLevel.Fastest);
+        archive.Dispose();
+        fs.Dispose();
+
+        //delete
+        File.Delete(jsonpath);
     }
 }
